@@ -63,7 +63,7 @@ def jira_webhook():
     ticket_id    = issue.get("key", "UNKNOWN")
     ticket_title = fields.get("summary", "")
     ticket_body  = _extract_body(fields)
-    repo_url     = fields.get(REPO_FIELD, "") or fields.get("description", "")[:200]
+    repo_url     = fields.get(REPO_FIELD) or (fields.get("description") or "")[:200]
 
     log.info("Triggered by Jira: %s — %s", ticket_id, ticket_title)
 
