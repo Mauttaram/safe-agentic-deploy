@@ -27,10 +27,12 @@ help:
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
 
+PYTHON := $(shell test -f .venv/bin/python3 && echo .venv/bin/python3 || command -v python3 || command -v python)
+
 install:
-	pip install -r requirements.txt
-	pip install -r test-webapp/requirements.txt
-	pip install -r api-service/requirements.txt
+	$(PYTHON) -m pip install -r requirements.txt
+	$(PYTHON) -m pip install -r test-webapp/requirements.txt
+	$(PYTHON) -m pip install -r api-service/requirements.txt
 
 # ── App environments ──────────────────────────────────────────────────────────
 
@@ -57,11 +59,11 @@ prod-multi:
 
 test:
 	@echo "Running test-webapp unit tests (expect FAILURES on buggy code)"
-	cd test-webapp && python -m pytest tests/ -v --tb=short
+	$(PYTHON) -m pytest test-webapp/tests/ -v --tb=short
 
 test-api:
 	@echo "Running api-service unit tests (expect FAILURES on buggy code)"
-	cd api-service && python -m pytest tests/ -v --tb=short
+	$(PYTHON) -m pytest api-service/tests/ -v --tb=short
 
 test-integration:
 	@echo "Running integration tests (requires sandbox-multi to be running)"
@@ -71,22 +73,22 @@ test-integration:
 
 seed:
 	@echo "Seeding RAG store with past failure history..."
-	python demo/seed_failures.py
+	$(PYTHON) demo/seed_failures.py
 
 demo: seed
 	@echo "Running RAG feedback loop demo (dry run)..."
-	python demo/run_demo.py
+	$(PYTHON) demo/run_demo.py
 
 demo-bug2: seed
-	python demo/run_demo.py --bug BUG-002
+	$(PYTHON) demo/run_demo.py --bug BUG-002
 
 webhook:
 	@echo "Starting Jira webhook server on http://localhost:5050"
-	python webhook/server.py
+	$(PYTHON) webhook/server.py
 
 simulate:
 	@echo "Sending simulated Jira webhook (BUG-001) to localhost:5050..."
-	python demo/simulate_webhook.py
+	$(PYTHON) demo/simulate_webhook.py
 
 # ── Cleanup ───────────────────────────────────────────────────────────────────
 
