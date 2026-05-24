@@ -53,9 +53,7 @@ PRODUCTS = [
 
 
 def calculate_sale_price(price, discount):
-    # BUG (single-repo): returns discount amount instead of discounted price
-    # Fix: return round(price * (1 - discount / 100), 2)
-    return round(price * discount / 100, 2)
+    return round(price * (1 - discount / 100), 2)
 
 
 # ── Single-repo mode (no API_SERVICE_URL) ────────────────────────────────────
@@ -82,15 +80,17 @@ def product_detail(product_id):
     if not product:
         return render_template("404.html"), 404
 
-    # BUG (single-repo): ZeroDivisionError when reviews list is empty
-    # Fix: avg_rating = sum(product["reviews"]) / len(product["reviews"]) if product["reviews"] else None
-    avg_rating = sum(product["reviews"]) / len(product["reviews"])
+    avg_rating = (
+        sum(product["reviews"]) / len(product["reviews"])
+        if product["reviews"]
+        else None
+    )
 
     sale_price = calculate_sale_price(product["price"], product["discount"])
     return render_template(
         "product.html",
         product=product,
-        avg_rating=round(avg_rating, 1),
+        avg_rating=round(avg_rating, 1) if avg_rating is not None else None,
         sale_price=sale_price,
         mode="single-repo",
     )
