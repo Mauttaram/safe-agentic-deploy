@@ -55,11 +55,7 @@ def list_products():
     result = []
     for p in PRODUCTS:
         product = p.copy()
-        # BUG: field was renamed from `sale_price` → `final_price` in a refactor
-        # without notifying the frontend team. Frontend still reads `sale_price`
-        # and gets None for every product, showing $0.00 on all sale items.
-        # Fix: rename back to `sale_price` (or align both repos on `final_price`)
-        product["final_price"] = compute_sale_price(p["price"], p["discount"])
+        product["sale_price"] = compute_sale_price(p["price"], p["discount"])
         result.append(product)
     return jsonify(result)
 
@@ -71,7 +67,7 @@ def get_product(product_id):
         return jsonify({"error": "Product not found"}), 404
 
     result = product.copy()
-    result["final_price"] = compute_sale_price(product["price"], product["discount"])
+    result["sale_price"] = compute_sale_price(product["price"], product["discount"])
     reviews = product["reviews"]
     result["avg_rating"] = round(sum(reviews) / len(reviews), 1) if reviews else None
     return jsonify(result)
