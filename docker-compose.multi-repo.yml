@@ -16,7 +16,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 5
-    profiles: [sandbox, prod]
+    profiles: [sandbox, prod, integration]
 
   # ── FRONTEND (Repo B: test-webapp) ─────────────────────────────────────────
   # Web frontend — calls the API service for product data.
@@ -35,7 +35,7 @@ services:
     depends_on:
       api-sandbox:
         condition: service_healthy
-    profiles: [sandbox]
+    profiles: [sandbox, integration]
 
   # ── PRODUCTION EQUIVALENTS ─────────────────────────────────────────────────
   # Promoted only after both repo PRs are merged and tests pass.
