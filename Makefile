@@ -84,7 +84,7 @@ demo-bug2: seed
 
 webhook:
 	@echo "Starting Jira webhook server on http://localhost:5050"
-	$(PYTHON) webhook/server.py
+	@set -a; [ -f .env ] && . ./.env; set +a; $(PYTHON) webhook/server.py
 
 simulate:
 	@echo "Sending simulated Jira webhook (BUG-001) to localhost:5050..."

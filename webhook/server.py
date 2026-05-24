@@ -33,6 +33,9 @@ log = logging.getLogger(__name__)
 
 TRIGGER_LABEL   = "openhands"       # Jira label that triggers the agent
 REPO_FIELD      = "customfield_repo" # Jira custom field holding the repo URL
+
+# Allow at most 2 agents running concurrently — prevents workspace and DB contention.
+_agent_semaphore = threading.Semaphore(2)
                                      # Set in Jira: Project settings → Fields
 
 
@@ -149,43 +152,46 @@ def _run_agent_async(
 ) -> None:
     """Runs in a background thread — builds enriched prompt, fires OpenHands."""
     sep = "─" * 60
-    try:
-        from feedback.injector import build_enriched_task
-        from webhook.runner    import run_openhands_task
+    with _agent_semaphore:
+        try:
+            from feedback.injector import build_enriched_task
+            from webhook.runner    import run_openhands_task
 
-        log.info(sep)
-        log.info("[%s] STEP 1/5 — Querying RAG store for similar past failures", ticket_id)
-        enriched_task = build_enriched_task(
-            ticket_id    = ticket_id,
-            ticket_title = ticket_title,
-            ticket_body  = ticket_body,
-            repo         = repo_url,
-        )
-        log.info("[%s] STEP 2/5 — Enriched task prompt built (%d chars)", ticket_id, len(enriched_task))
-        log.info("[%s] STEP 3/5 — Launching OpenHands agent (sandbox + Claude Sonnet)", ticket_id)
-        log.info("[%s]           Agent will: clone repo → read code → write fix → run tests → open PR", ticket_id)
-        log.info(sep)
+            log.info(sep)
+            log.info("[%s] STEP 1/5 — Querying RAG store for similar past failures", ticket_id)
+            enriched_task = build_enriched_task(
+                ticket_id    = ticket_id,
+                ticket_title = ticket_title,
+                ticket_body  = ticket_body,
+                repo         = repo_url,
+            )
+            log.info("[%s] STEP 2/5 — Enriched task prompt built (%d chars)", ticket_id, len(enriched_task))
+            log.info("[%s] STEP 3/5 — Launching OpenHands agent (sandbox + Claude Sonnet)", ticket_id)
+            log.info("[%s]           Agent will: clone repo → read code → write fix → run tests → open PR", ticket_id)
+            log.info(sep)
 
-        result = run_openhands_task(
-            ticket_id     = ticket_id,
-            ticket_title  = ticket_title,
-            ticket_body   = ticket_body,
-            repo_url      = repo_url,
-            enriched_task = enriched_task,
-        )
+            result = run_openhands_task(
+                ticket_id     = ticket_id,
+                ticket_title  = ticket_title,
+                ticket_body   = ticket_body,
+                repo_url      = repo_url,
+                enriched_task = enriched_task,
+            )
 
-        log.info(sep)
-        if result["success"]:
-            log.info("[%s] STEP 4/5 — Tests passed ✓", ticket_id)
-            log.info("[%s] STEP 5/5 — PR opened: %s", ticket_id, result.get("pr_url", "(see agent log)"))
-            log.info("[%s] ✓ PIPELINE COMPLETE — bug fixed and shipped safely", ticket_id)
-        else:
-            log.warning("[%s] STEP 4/5 — Agent failed — root cause captured to RAG store", ticket_id)
-            log.warning("[%s]            event_id=%s", ticket_id, result.get("event_id"))
-            log.warning("[%s]            Next run will see this failure in its prompt", ticket_id)
+            log.info(sep)
+            if result["success"]:
+                log.info("[%s] STEP 4/5 — Tests passed ✓", ticket_id)
+                pr_url = result.get("pr_url", "")
+                pr_display = f"\033]8;;{pr_url}\033\\{pr_url}\033]8;;\033\\" if pr_url else "(see agent log)"
+                log.info("[%s] STEP 5/5 — PR opened: %s", ticket_id, pr_display)
+                log.info("[%s] ✓ PIPELINE COMPLETE — bug fixed and shipped safely", ticket_id)
+            else:
+                log.warning("[%s] STEP 4/5 — Agent failed — root cause captured to RAG store", ticket_id)
+                log.warning("[%s]            event_id=%s", ticket_id, result.get("event_id"))
+                log.warning("[%s]            Next run will see this failure in its prompt", ticket_id)
 
-    except Exception as exc:
-        log.exception("[%s] Unexpected error in agent runner: %s", ticket_id, exc)
+        except Exception as exc:
+            log.exception("[%s] Unexpected error in agent runner: %s", ticket_id, exc)
 
 
 # ── Body extraction helpers ───────────────────────────────────────────────────

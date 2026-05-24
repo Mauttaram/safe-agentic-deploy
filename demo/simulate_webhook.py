@@ -69,7 +69,7 @@ PAYLOADS = {
             - Shows "No reviews yet" for products with empty review list
             - All tests in tests/test_app.py pass
         """),
-        repo_url = "https://github.com/Mauttaram/safe-agentic-deploy",
+        repo_url = "https://github.com/Mauttaram/autonomous-bug-fixer",
     ),
     "2": _make_payload(
         key         = "BUG-002",
@@ -89,7 +89,7 @@ PAYLOADS = {
             - Integration tests pass (integration-tests/test_integration.py)
             - Both repos have passing unit tests
         """),
-        repo_url = "https://github.com/Mauttaram/safe-agentic-deploy",
+        repo_url = "https://github.com/Mauttaram/autonomous-bug-fixer",
     ),
 }
 

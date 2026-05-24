@@ -31,7 +31,7 @@ def run_openhands_task(
         {"success": True, "pr_url": "..."}
         {"success": False, "event_id": "...", "root_cause": "...", "error_output": "..."}
     """
-    workspace = os.path.join(os.getcwd(), "workspace")
+    workspace = os.path.join(os.getcwd(), "workspace", ticket_id)
     os.makedirs(workspace, exist_ok=True)
 
     # Run OpenHands via the locally installed pip package (avoids Docker-in-Docker
@@ -77,7 +77,7 @@ def run_openhands_task(
 
         if result.returncode == 0:
             pr_url = _extract_pr_url(output)
-            print(f"[runner] Success — PR: {pr_url or 'see agent logs'}")
+            print(f"[runner] Success — PR: {_hyperlink(pr_url) if pr_url else 'see agent logs'}")
             return {"success": True, "pr_url": pr_url, "log": log_path}
 
         # ── Failure path ──────────────────────────────────────────────────────
@@ -167,11 +167,31 @@ def _capture_to_rag(
     return event.root_cause, event.event_id
 
 
+def _hyperlink(url: str, label: str | None = None) -> str:
+    """Render a terminal-clickable OSC 8 hyperlink (works in iTerm2, macOS Terminal, VS Code)."""
+    text = label or url
+    return f"\033]8;;{url}\033\\{text}\033]8;;\033\\"
+
+
 def _extract_pr_url(output: str) -> str:
     """Pull the GitHub PR URL out of OpenHands stdout."""
     import re
-    match = re.search(r"https://github\.com/[^\s]+/pull/\d+", output)
-    return match.group(0) if match else ""
+    pr_pattern = r"https://github\.com/[^\s]+/pull/\d+"
+
+    # Priority 1: URL on a creation line ("created pull request", "opened PR", etc.)
+    created = re.findall(
+        r"(?i)(?:creat|open|submit|push)(?:ed|ing)[^\n]*(" + pr_pattern + r")",
+        output,
+    )
+    if created:
+        return created[-1]
+
+    # Priority 2: URL alone on its own line — exactly what `gh pr create` prints.
+    solo = re.findall(r"^\s*(" + pr_pattern + r")\s*$", output, re.MULTILINE)
+    if solo:
+        return solo[-1]
+
+    return ""
 
 
 def _extract_diff(output: str) -> str:

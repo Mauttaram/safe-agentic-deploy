@@ -12,6 +12,7 @@ or similar root causes — whichever is most relevant.
 """
 from __future__ import annotations
 import os
+import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -23,6 +24,8 @@ EMBED_MODEL     = "all-MiniLM-L6-v2"   # fast, 80MB, runs offline
 
 
 class RAGStore:
+    _write_lock = threading.Lock()  # shared across all instances; ChromaDB SQLite can't handle concurrent writes
+
     def __init__(self, store_dir: str = "feedback/store"):
         self._store_dir = store_dir
         self._client    = None
@@ -49,23 +52,24 @@ class RAGStore:
     def add(self, event: "FailureEvent") -> None:
         if self._collection is None:
             return
-        text     = self._event_to_text(event)
+        text      = self._event_to_text(event)
         embedding = self._embed(text)
 
-        self._collection.add(
-            ids        = [event.event_id],
-            embeddings = [embedding],
-            documents  = [text],
-            metadatas  = [{
-                "event_type":   event.event_type,
-                "ticket_id":    event.ticket_id,
-                "ticket_title": event.ticket_title,
-                "repo":         event.repo,
-                "root_cause":   event.root_cause,
-                "timestamp":    event.timestamp,
-                "diff_snippet": event.diff[:500],
-            }],
-        )
+        with RAGStore._write_lock:
+            self._collection.add(
+                ids        = [event.event_id],
+                embeddings = [embedding],
+                documents  = [text],
+                metadatas  = [{
+                    "event_type":   event.event_type,
+                    "ticket_id":    event.ticket_id,
+                    "ticket_title": event.ticket_title,
+                    "repo":         event.repo,
+                    "root_cause":   event.root_cause,
+                    "timestamp":    event.timestamp,
+                    "diff_snippet": event.diff[:500],
+                }],
+            )
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
